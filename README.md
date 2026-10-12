@@ -1,53 +1,69 @@
 # Vortex Nexus
 
-**A lightweight, high-performance, open-source alternative to Microsoft Teams.**
+**A lightweight, high-performance, open-source alternative to Microsoft Teams —
+assembled from proven open-source foundations, not written from scratch.**
 
 Vortex Nexus is not a Teams clone. It is the counter-strategy: extreme speed
-and constraint instead of the "everything app". One Python process on each
-side, text chat only, messages stored as flat files.
+and constraint instead of the "everything app".
 
-## Why Teams is being replaced → what Nexus does instead
+## The three foundational blocks
+
+| Block | Role | Teams flaw it kills |
+|-------|------|---------------------|
+| [Tauri](https://tauri.app/) | Desktop window on the OS web engine (WebView2) | No 200 MB Electron bundle — the shell is ~10 MB, so Teams' idle RAM burn is gone at the root |
+| [LiveKit](https://livekit.io/) | Ultra-low-latency WebRTC audio/video | Optimized streaming blocks out of the box — no homegrown media stack, no enterprise media bloat |
+| [Lucide](https://lucide.dev/) | Vector UI icons (mic, camera, hang-up…) | Modern UI without shipping image atlases |
+
+Chat stays a **flat-file nexus server** — every Teams flaw still maps to an
+invariant:
 
 | # | Teams architectural flaw | The Nexus invariant |
 |---|--------------------------|---------------------|
-| 1 | Multiple background processes idle away RAM even after updates | **One process per side**, stdlib only. No Electron, no background daemons — idle is just an open socket |
-| 2 | The "everything app" (chat + video + calendars + apps + AI) makes context switching slow and cluttered | **Text chat only.** Channels + messages + presence. No video engine, no calendar, no app store, no AI copilot to bloat the interface |
-| 3 | Every group chat force-spins up a SharePoint Document Library → data bloat, cloud cost | **No document library exists.** Messages are `.jsonl` files in `./data/channels/` — git-friendly, greppable, ~100 bytes at rest |
+| 1 | Multiple background processes idle away RAM even after updates | One Tauri process (OS webview) + one stdlib Python server. Idle = open sockets |
+| 2 | The "everything app" (chat + video + calendars + apps + AI) makes context switching slow and cluttered | Chat + calls only. Channels, messages, presence, WebRTC. No calendar, no app store, no AI copilot |
+| 3 | Every group chat force-spins up a SharePoint Document Library → data bloat, cloud cost | **No document library exists.** Messages are `.jsonl` files in `./data/channels/` — git-friendly, greppable |
+
+## Layout
+
+```
+nexus.py            chat server (stdlib TCP, newline-JSON) — unchanged authority
+nexus_test.py       engine E2E: 15/15 PASS
+app/                Tauri 2 desktop client (vanilla JS + Vite, no framework)
+  src/main.js       chat UI via invoke/emit + LiveKit room join
+  src-tauri/src/
+    chat.rs         Rust TCP client speaking the nexus protocol → UI events
+    tokens.rs       mints LiveKit join JWTs (HS256; secret never reaches UI)
+livekit/            local LiveKit server (binary fetched by setup_livekit.ps1)
+```
+
+Storage invariant: `cat data/channels/general.jsonl` *is* your export tool.
 
 ## Quickstart
 
 ```bat
-pip install -r requirements.txt
-START_SERVER.bat      # backend on 127.0.0.1:8765
-START_NEXUS.bat       # GUI client — pick nick, Connect, chat
+:: 1. chat server (no pip deps — stdlib)
+START_SERVER.bat
+
+:: 2. A/V server (first run downloads the binary, configs are generated)
+livekit\START_LIVEKIT.bat
+
+:: 3. desktop app
+cd app
+npm install
+npx tauri dev
 ```
 
-Two clients on one machine: just run `START_NEXUS.bat` twice. Other machines
-on your LAN: run the server with `python nexus.py serve --host 0.0.0.0` and
-point clients at the host IP. There is no cloud component — the server *is*
-the whole backend, and it fits in one file.
+LAN use: run `python nexus.py serve --host 0.0.0.0` and point clients at the
+host IP. There is no cloud component and no account anywhere.
 
-## Architecture (one file, two modes)
+## Security & trust boundaries
 
-```
-nexus.py  ── serve ──▶ threaded TCP server (single writer)
-                       newline-delimited JSON protocol
-                       appends to data/channels/<name>.jsonl
-                       broadcasts to channel members
-          ── gui   ──▶ customtkinter client
-                       reader thread → queue → Tk main loop (no unsafe UI calls)
-```
-
-Storage is append-only JSONL: `{ts, user, text}` per line. Zero databases, zero
-document libraries. `cat data/channels/general.jsonl` *is* your export tool.
-
-## Security & trust boundaries (kept, not simplified away)
-
-- Channel names validated `^[a-z0-9_-]{1,32}$` on **both** sides (no path traversal)
-- Nicks validated `^[\w .\-]{1,32}$` — printable, no control characters
-- Protocol line cap 64 KB (abusive peer → connection dropped, server lives)
-- Message cap 4,000 chars, enforced at server (authoritative) and client
-- Server binds `127.0.0.1` by default — LAN exposure is an explicit opt-in
+- Chat: channel `^[a-z0-9_-]{1,32}$` and nick checks on **both** Rust client
+  and Python server (no path traversal); 64 KB protocol line cap;
+  4,000-char messages; server binds `127.0.0.1` by default
+- A/V: API secret lives only in `livekit/livekit_config.json` (gitignored);
+  the webview receives `{url, token}` only — tokens are HS256, expire in 1 h,
+  scoped to a single room
 - History loads last 200 messages; malformed lines are skipped, never crash
 
 ## Proof
@@ -62,6 +78,9 @@ PASS bad nick rejected (<script>)         PASS server survives 70KB line flood
 PASS channel file written                 PASS 2 messages persisted
 PASS history survives server restart
 ```
+
+Desktop app: Tauri window connects to chat (history + presence render),
+LiveKit token mint → room join → mic/cam/hang-up controls with Lucide icons.
 
 ## License
 

@@ -1,0 +1,10 @@
+# Vortex Nexus local LiveKit server (localhost only)
+port: 7880
+bind_addresses:
+  - 127.0.0.1
+rtc:
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: false
+keys:
+  vortexdev: nU3oZwGCdGesLcz76UFDYTjVnJbRh6-qWSfifv2wNLw

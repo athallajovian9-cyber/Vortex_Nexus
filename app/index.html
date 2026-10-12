@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vortex Nexus</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header id="top">
+    <span class="brand">◈ Vortex Nexus</span>
+    <span class="tag">Tauri shell · LiveKit A/V · flat-file chat · no SharePoint</span>
+    <span class="conn">
+      <input id="host" value="127.0.0.1" title="server host" />
+      <input id="port" value="8765" title="server port" size="4" />
+      <input id="nick" value="athalla" title="nick" />
+      <button id="connectBtn">Connect</button>
+    </span>
+  </header>
+
+  <aside id="side">
+    <h3>CHANNELS</h3>
+    <div id="channels"></div>
+    <h3>ONLINE</h3>
+    <div id="online"><span class="dim">—</span></div>
+    <h3>CALL</h3>
+    <div id="call">
+      <button id="joinCall" class="primary"><i data-lucide="phone"></i> Join call</button>
+      <div class="row" id="callControls" hidden>
+        <button id="micBtn" title="mute mic"><i data-lucide="mic"></i></button>
+        <button id="camBtn" title="camera"><i data-lucide="video"></i></button>
+        <button id="leaveBtn" class="danger" title="hang up"><i data-lucide="phone-off"></i></button>
+      </div>
+      <div id="callState" class="dim">no call</div>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div id="tiles" hidden></div>
+    <h2 id="chanTitle"># general</h2>
+    <div id="log"></div>
+    <div id="compose">
+      <input id="msg" placeholder="Message #general — Enter to send" autocomplete="off" />
+      <button id="sendBtn"><i data-lucide="send"></i> Send</button>
+    </div>
+    <footer id="status">disconnected</footer>
+  </main>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
